@@ -1,0 +1,137 @@
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+  margin: 16px 0;
+  padding: 0;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 8px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.breadcrumb-link:hover {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: #bdd6e3;
+  transform: translateY(-1px);
+}
+
+.breadcrumb-current {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+}
+
+.breadcrumb-icon {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-separator {
+  color: #cbd5e1;
+  font-size: 16px;
+  font-weight: 300;
+  margin: 0 4px;
+}
+
+/* Dark Theme Support */
+.dark-theme .breadcrumb-link {
+  background: rgba(51, 65, 85, 0.5);
+  border-color: rgba(71, 85, 105, 0.3);
+  color: #cbd5e1;
+}
+
+.dark-theme .breadcrumb-link:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+.dark-theme .breadcrumb-current {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.dark-theme .breadcrumb-separator {
+  color: #64748b;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .breadcrumb-nav {
+    margin: 12px 0;
+  }
+  
+  .breadcrumb-list {
+    gap: 6px;
+  }
+  
+  .breadcrumb-link,
+  .breadcrumb-current {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .breadcrumb-icon {
+    font-size: 11px;
+  }
+  
+  .breadcrumb-separator {
+    font-size: 14px;
+    margin: 0 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .breadcrumb-list {
+    gap: 4px;
+  }
+  
+  .breadcrumb-link,
+  .breadcrumb-current {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  /* Hide icons on very small screens */
+  .breadcrumb-icon {
+    display: none;
+  }
+}
