@@ -1,9 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ProductDetailsModal.css';
+import ProductReview from './ProductReview';
 
 const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, onAddToCompare }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [reviewError, setReviewError] = useState('');
+  const [orderStatus, setOrderStatus] = useState('');
+  const [placingOrder, setPlacingOrder] = useState(false);
+
+  useEffect(() => {
+    if (!product?._id && !product?.id) return;
+    setLoadingReviews(true);
+    fetch(`/api/products/${product._id || product.id}/reviews`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setReviews(data.reviews);
+        else setReviews([]);
+        setLoadingReviews(false);
+      })
+      .catch(() => {
+        setReviews([]);
+        setLoadingReviews(false);
+      });
+  }, [product]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-IN', {
@@ -12,6 +34,61 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(price);
+  };
+
+  const handleAddReview = async (review) => {
+    setReviewError('');
+    try {
+      const res = await fetch(`/api/products/${product._id || product.id}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...review })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReviews([data.review, ...reviews]);
+      } else {
+        setReviewError(data.message || 'Failed to add review');
+      }
+    } catch (err) {
+      setReviewError('Failed to add review');
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    setOrderStatus('');
+    setPlacingOrder(true);
+    try {
+      // You may want to get user info from context/auth in a real app
+      const orderPayload = {
+        items: [{
+          productId: product._id || product.id,
+          name: product.name,
+          price: product.price,
+          quantity: quantity,
+          image: product.images?.[0] || ''
+        }],
+        total: product.price * quantity,
+        shippingAddress: 'Demo Address',
+        paymentMethod: 'COD',
+        couponCode: '',
+        discount: 0
+      };
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOrderStatus('Order placed successfully!');
+      } else {
+        setOrderStatus(data.message || 'Failed to place order');
+      }
+    } catch (err) {
+      setOrderStatus('Failed to place order');
+    }
+    setPlacingOrder(false);
   };
 
   return (
@@ -115,6 +192,9 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
                 <button onClick={() => onAddToCompare(product)} className="add-to-compare">
                   Compare
                 </button>
+                <button onClick={handlePlaceOrder} className="place-order-btn" disabled={placingOrder} style={{background:'linear-gradient(90deg,#22c55e,#16a34a)',color:'#fff',marginLeft:'0.5rem',padding:'0.6rem 1.2rem',borderRadius:'8px',fontWeight:'600',fontSize:'1rem',boxShadow:'0 2px 8px rgba(34,197,94,0.08)'}}>
+                  {placingOrder ? 'Placing Order...' : 'Place Order'}
+                </button>
               </div>
             </div>
 
@@ -125,6 +205,16 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
             </div>
           </div>
         </div>
+
+        {/* Product Review Section */}
+        <ProductReview
+          productId={product._id || product.id}
+          reviews={reviews}
+          onSubmitReview={handleAddReview}
+        />
+        {loadingReviews && <div style={{textAlign:'center',color:'#64748b'}}>Loading reviews...</div>}
+        {reviewError && <div style={{color:'#dc2626',textAlign:'center'}}>{reviewError}</div>}
+        {orderStatus && <div style={{marginTop:'0.5rem',color:orderStatus.includes('success')?'#22c55e':'#dc2626',fontWeight:'600'}}>{orderStatus}</div>}
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+// Sri Saravana Textile Backend Server
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -979,6 +980,52 @@ app.delete('/api/user/cart', authenticateToken, async (req, res) => {
   }
 });
 
+// ====== PRODUCT REVIEWS ROUTES ======
+
+// Add a review to a product
+app.post('/api/products/:id/reviews', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment, user } = req.body;
+    if (!rating || !comment) {
+      return res.status(400).json({ success: false, message: 'Rating and comment are required.' });
+    }
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found.' });
+    }
+    const review = {
+      user: user || 'Anonymous',
+      rating,
+      comment,
+      date: new Date()
+    };
+    product.reviews.unshift(review);
+    // Optionally update average rating
+    product.rating = product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length;
+    await product.save();
+    res.json({ success: true, message: 'Review added successfully.', review });
+  } catch (error) {
+    console.error('Add review error:', error);
+    res.status(500).json({ success: false, message: 'Error adding review.' });
+  }
+});
+
+// Get all reviews for a product
+app.get('/api/products/:id/reviews', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id).select('reviews');
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found.' });
+    }
+    res.json({ success: true, reviews: product.reviews });
+  } catch (error) {
+    console.error('Get reviews error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching reviews.' });
+  }
+});
+
 // ====== WISHLIST ROUTES ======
 
 // Get user's wishlist
@@ -1570,6 +1617,21 @@ async function initializeDatabase() {
     console.error('❌ Error initializing database:', error);
   }
 }
+
+// ====== USER PROFILE ROUTE ======
+// Move this route here, after app and authenticateToken are defined
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching user profile' });
+  }
+});
 
 // Start server with automatic database setup
 const server = app.listen(PORT, async () => {

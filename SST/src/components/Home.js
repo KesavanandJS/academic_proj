@@ -9,6 +9,7 @@ import AdvancedSearch from './AdvancedSearch';
 import ProductRecommendations from './ProductRecommendations';
 import ThemeToggle from './ThemeToggle';
 import QuickChatSupport from './QuickChatSupport';
+import UserProfile from './UserProfile';
 import { useToast } from '../context/ToastContext';
 import './Home.css';
 import './ToastNotification.css';
@@ -16,6 +17,7 @@ import './ThemeToggle.css';
 import './AdvancedSearch.css';
 import './ProductRecommendations.css';
 import './QuickChatSupport.css';
+import './UserProfile.css';
 
 const Home = ({ user, onLogout }) => {
   const [products, setProducts] = useState([]);
@@ -38,6 +40,7 @@ const Home = ({ user, onLogout }) => {
     rating: '',
     inStock: false
   });
+  const [showProfile, setShowProfile] = useState(false);
 
   const { success, error, info } = useToast();
 
@@ -440,7 +443,19 @@ const Home = ({ user, onLogout }) => {
             <button onClick={() => setShowCompare(true)} className="compare-btn">
               ⚖ Compare ({compareList.length})
             </button>
+            <button onClick={() => setShowProfile(true)} className="profile-btn">
+              Profile
+            </button>
             <button onClick={onLogout} className="logout-btn">Logout</button>
+            {/* User Profile Modal */}
+            {showProfile && (
+              <UserProfile
+                user={user}
+                token={localStorage.getItem('token')}
+                onClose={() => setShowProfile(false)}
+                onLogout={onLogout}
+              />
+            )}
           </div>
         </div>
       </header>
