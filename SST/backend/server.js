@@ -1633,6 +1633,16 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin: Get all users (for admin panel)
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await User.find({}, '-password'); // Exclude password field
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching users' });
+  }
+});
+
 // Start server with automatic database setup
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Sri Saravana Textile Server running on port ${PORT}`);

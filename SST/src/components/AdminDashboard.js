@@ -44,22 +44,58 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const units = ['Kg', 'Meters', 'Pieces'];
   const orderStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
+  // Reference for products table to scroll into view
+  const productsTableRef = React.useRef(null);
+
+  // Fetch total products count from backend
+  const [totalProductsCount, setTotalProductsCount] = useState(null);
+  // Fetch in-stock products count from backend
+  const [inStockCount, setInStockCount] = useState(null);
+  const [outOfStockCount, setOutOfStockCount] = useState(null);
+  // Add a state for totalUsersCount
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
+
+  // Always update inStockCount and outOfStockCount when products change
+  useEffect(() => {
+    if (Array.isArray(products)) {
+      setInStockCount(products.filter(p => Number(p.stock) > 0).length);
+      setOutOfStockCount(products.filter(p => !p.stock || Number(p.stock) === 0).length);
+    }
+  }, [products]);
+
   useEffect(() => {
     fetchProducts();
     fetchOrders();
     fetchUsers();
     fetchAnalytics();
+    fetchTotalProductsCount();
+    // fetchInStockCount(); // Remove this, now handled by products effect above
   }, []);
 
+  // Make sure fetchUsers is called every time the users tab is opened
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+    // Optionally, you can also call fetchUsers on mount as before
+  }, [activeTab]);
+
+  // Make sure fetchProducts sets totalProductsCount
   const fetchProducts = async () => {
     try {
       const response = await fetch('http://localhost:8000/api/products');
       const result = await response.json();
       if (result.success) {
         setProducts(result.products);
+        setTotalProductsCount(result.products.length); // <-- Set product count here
+      } else {
+        setProducts([]);
+        setTotalProductsCount(0);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
+      setTotalProductsCount(0);
     }
   };
 
@@ -74,14 +110,34 @@ const AdminDashboard = ({ admin, onLogout }) => {
     }
   };
 
+  // Replace fetchUsers with admin endpoint to fetch all users
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/users');
+      const response = await fetch('http://localhost:8000/api/admin/users');
       const data = await response.json();
-      setUsers(data.users || []);
+      // Defensive: ensure array and each user has required fields
+      if (data.success && Array.isArray(data.users)) {
+        setUsers(
+          data.users.map(u => ({
+            _id: u._id || u.id || '',
+            username: u.username || '',
+            firstName: u.firstName || '',
+            lastName: u.lastName || '',
+            email: u.email || '',
+            role: u.role || 'user',
+            createdAt: u.createdAt || '',
+            isActive: typeof u.isActive === 'boolean' ? u.isActive : true
+          }))
+        );
+        setTotalUsersCount(data.users.length); // Set the count here
+      } else {
+        setUsers([]);
+        setTotalUsersCount(0);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       setUsers([]);
+      setTotalUsersCount(0);
     }
   };
 
@@ -93,6 +149,24 @@ const AdminDashboard = ({ admin, onLogout }) => {
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setAnalytics({});
+    }
+  };
+
+  const fetchTotalProductsCount = async () => {
+    try {
+      // Try to fetch from a dedicated count endpoint
+      const response = await fetch('http://localhost:8000/api/products/count');
+      const result = await response.json();
+      if (result.success && typeof result.count === 'number') {
+        setTotalProductsCount(result.count);
+      } else if (Array.isArray(result.products)) {
+        setTotalProductsCount(result.products.length);
+      } else {
+        setTotalProductsCount(null);
+      }
+    } catch (error) {
+      // fallback to products.length if API not available
+      setTotalProductsCount(products.length);
     }
   };
 
@@ -384,6 +458,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                     fetchOrders();
                     fetchUsers();
                     fetchAnalytics();
+                    fetchTotalProductsCount();
                   }}>
                     🔄 Refresh
                   </button>
@@ -391,25 +466,51 @@ const AdminDashboard = ({ admin, onLogout }) => {
               </div>
 
               <div className="dashboard-stats">
-                <div className="stat-card">
-                  <div className="stat-icon">📦</div>
+                <div
+                  className="stat-card"
+                  style={{ cursor: 'pointer', boxShadow: '0 2px 12px rgba(120, 86, 255, 0.08)' }}
+                  onClick={() => {
+                    setActiveTab('products');
+                    setTimeout(() => {
+                      if (productsTableRef.current) {
+                        productsTableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }, 100);
+                  }}
+                  title="View all products"
+                >
+                  <div className="stat-icon" style={{ color: '#7c3aed' }}>📦</div>
                   <div className="stat-content">
-                    <h3>Total Products</h3>
-                    <p className="stat-number">{products.length}</p>
+                    <h3>TOTAL PRODUCTS</h3>
+                    <p className="stat-number" style={{ fontSize: 32, color: '#7c3aed', fontWeight: 700 }}>
+                      {totalProductsCount !== null ? totalProductsCount : products.length}
+                    </p>
                   </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-icon">✅</div>
+                <div
+                  className="stat-card"
+                  style={{ boxShadow: '0 2px 12px rgba(16, 185, 129, 0.08)' }}
+                  title="Total products in stock"
+                >
+                  <div className="stat-icon" style={{ color: '#10b981' }}>✅</div>
                   <div className="stat-content">
-                    <h3>In Stock</h3>
-                    <p className="stat-number">{products.filter(p => p.stock > 0).length}</p>
+                    <h3>IN STOCK</h3>
+                    <p className="stat-number" style={{ fontSize: 32, color: '#10b981', fontWeight: 700 }}>
+                      {inStockCount !== null ? inStockCount : products.filter(p => Number(p.stock) > 0).length}
+                    </p>
                   </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-icon">❌</div>
+                <div
+                  className="stat-card"
+                  style={{ boxShadow: '0 2px 12px rgba(239, 68, 68, 0.08)' }}
+                  title="Total products out of stock"
+                >
+                  <div className="stat-icon" style={{ color: '#ef4444' }}>❌</div>
                   <div className="stat-content">
-                    <h3>Out of Stock</h3>
-                    <p className="stat-number">{products.filter(p => p.stock === 0).length}</p>
+                    <h3>OUT OF STOCK</h3>
+                    <p className="stat-number" style={{ fontSize: 32, color: '#ef4444', fontWeight: 700 }}>
+                      {outOfStockCount !== null ? outOfStockCount : products.filter(p => !p.stock || Number(p.stock) === 0).length}
+                    </p>
                   </div>
                 </div>
                 <div className="stat-card">
@@ -423,7 +524,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                   <div className="stat-icon">👥</div>
                   <div className="stat-content">
                     <h3>Total Users</h3>
-                    <p className="stat-number">{users.length}</p>
+                    <p className="stat-number" style={{ fontSize: 32, color: '#f59e42', fontWeight: 700 }}>{totalUsersCount}</p>
                   </div>
                 </div>
                 <div className="stat-card">
@@ -743,7 +844,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 </div>
               )}
 
-              <div className="products-table">
+              <div className="products-table" ref={productsTableRef}>
                 <table>
                   <thead>
                     <tr>
@@ -900,10 +1001,13 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 <table>
                   <thead>
                     <tr>
-                      <th>User</th>
+                      <th>User ID</th>
+                      <th>Username</th>
+                      <th>First Name</th>
+                      <th>Last Name</th>
                       <th>Email</th>
                       <th>Role</th>
-                      <th>Joined</th>
+                      <th>Created At</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -911,40 +1015,45 @@ const AdminDashboard = ({ admin, onLogout }) => {
                   <tbody>
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="no-users">
+                        <td colSpan="9" className="no-users">
                           No users found.
                         </td>
                       </tr>
                     ) : (
                       users.map((user) => (
                         <tr key={user._id || user.id}>
-                          <td>
-                            <div className="user-info">
-                              <strong>{user.username || user.name}</strong>
-                            </div>
+                          <td style={{ color: '#ff6b35', fontWeight: 600, fontSize: 13 }}>
+                            {user._id || user.id}
                           </td>
+                          <td>{user.username}</td>
+                          <td>{user.firstName}</td>
+                          <td>{user.lastName}</td>
                           <td>{user.email}</td>
                           <td>
                             <span className={`role-badge ${user.role || 'user'}`}>
                               {user.role || 'User'}
                             </span>
                           </td>
-                          <td>{new Date(user.createdAt).toLocaleDateString('en-IN')}</td>
                           <td>
-                            <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
-                              {user.isActive ? 'Active' : 'Inactive'}
+                            {user.createdAt
+                              ? new Date(user.createdAt).toLocaleDateString('en-IN')
+                              : ''}
+                          </td>
+                          <td>
+                            <span className={`status-badge ${user.isActive !== false ? 'active' : 'inactive'}`}>
+                              {user.isActive !== false ? 'Active' : 'Inactive'}
                             </span>
                           </td>
                           <td>
                             <div className="action-buttons">
-                              <button 
+                              <button
                                 className="edit-btn"
                                 onClick={() => console.log('Edit user:', user._id)}
                               >
                                 ✏️
                               </button>
                               {user.role !== 'admin' && (
-                                <button 
+                                <button
                                   className="delete-btn"
                                   onClick={() => deleteUser(user._id || user.id)}
                                 >
