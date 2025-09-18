@@ -1,7 +1,6 @@
 // Sri Saravana Textile Backend Server
-const Razorpay = require('razorpay');
-const router = express.Router();
 const express = require('express');
+const razorpayRouter = require('./razorpay');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -14,6 +13,9 @@ const PORT = parseInt(process.env.PORT) || 8001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Razorpay payment API
+app.use(razorpayRouter);
 
 // MongoDB Connection (supports both local and cloud)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/SST';
@@ -1701,23 +1703,3 @@ server.on('error', (err) => {
 });
 
 
-const razorpay = new Razorpay({
-  key_id: 'rzp_test_RIzKRmudRwp3Ru',
-  key_secret: 'k50GwVtqGfh6lX5IU0u7jL5H'
-});
-
-router.post('/api/create-razorpay-order', async (req, res) => {
-  const { amount } = req.body;
-  try {
-    const order = await razorpay.orders.create({
-      amount: amount, // in paise
-      currency: "INR",
-      receipt: "order_rcptid_" + Math.random().toString(36).slice(2)
-    });
-    res.json({ success: true, order });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Razorpay order creation failed" });
-  }
-});
-
-module.exports = router;

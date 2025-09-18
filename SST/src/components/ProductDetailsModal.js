@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../context/ToastContext';
 import './ProductDetailsModal.css';
 import ProductReview from './ProductReview';
 
@@ -12,11 +13,13 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
   const [reviewError, setReviewError] = useState('');
   const [orderStatus, setOrderStatus] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const toast = useToast();
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
     if (!product?._id && !product?.id) return;
     setLoadingReviews(true);
-    fetch(`/api/products/${product._id || product.id}/reviews`)
+  fetch(`${API_URL}/api/products/${product._id || product.id}/reviews`)
       .then(res => res.json())
       .then(data => {
         if (data.success) setReviews(data.reviews);
@@ -41,7 +44,7 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
   const handleAddReview = async (review) => {
     setReviewError('');
     try {
-      const res = await fetch(`/api/products/${product._id || product.id}/reviews`, {
+  const res = await fetch(`${API_URL}/api/products/${product._id || product.id}/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...review })
@@ -85,7 +88,7 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
     // Create order on backend (amount in paise)
     let orderData;
     try {
-      const orderRes = await fetch('/api/create-razorpay-order', {
+  const orderRes = await fetch(`${API_URL}/api/create-razorpay-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: product.price * quantity * 100 })
@@ -113,7 +116,7 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
       handler: function (response) {
         setOrderStatus('Payment successful! Payment ID: ' + response.razorpay_payment_id);
         setPlacingOrder(false);
-        // Optionally: verify payment on backend here
+        toast.success('Payment Successful', 'Payment ID: ' + response.razorpay_payment_id);
       },
       prefill: {
         name: "Test User",
@@ -132,6 +135,7 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
     rzp.on('payment.failed', function (response){
       setOrderStatus('Payment failed: ' + response.error.description);
       setPlacingOrder(false);
+      toast.error('Payment Failed', response.error.description);
     });
     rzp.open();
     setPlacingOrder(false);
@@ -156,7 +160,7 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
         couponCode: '',
         discount: 0
       };
-      const res = await fetch('/api/orders', {
+  const res = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload)
