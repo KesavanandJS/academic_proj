@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './ProductDetailsModal.css';
 import ProductReview from './ProductReview';
 
+const RAZORPAY_KEY_ID = "rzp_test_RIzKRmudRwp3Ru"; // DO NOT expose key_secret in frontend code
+
 const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, onAddToCompare }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -53,6 +55,86 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
     } catch (err) {
       setReviewError('Failed to add review');
     }
+  };
+
+  // Razorpay script loader
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-sdk')) return resolve(true);
+      const script = document.createElement('script');
+      script.id = 'razorpay-sdk';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Razorpay payment handler using backend order creation
+  const handleRazorpayPayment = async () => {
+    setOrderStatus('');
+    setPlacingOrder(true);
+
+    const res = await loadRazorpayScript();
+    if (!res) {
+      setOrderStatus('Failed to load payment gateway. Please try again.');
+      setPlacingOrder(false);
+      return;
+    }
+
+    // Create order on backend (amount in paise)
+    let orderData;
+    try {
+      const orderRes = await fetch('/api/create-razorpay-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: product.price * quantity * 100 })
+      });
+      orderData = await orderRes.json();
+      if (!orderData.success) {
+        setOrderStatus('Failed to create payment order.');
+        setPlacingOrder(false);
+        return;
+      }
+    } catch (err) {
+      setOrderStatus('Failed to create payment order.');
+      setPlacingOrder(false);
+      return;
+    }
+
+    const options = {
+      key: RAZORPAY_KEY_ID,
+      amount: orderData.order.amount,
+      currency: "INR",
+      name: product.name,
+      description: "Test Transaction",
+      image: product.images?.[0] || "",
+      order_id: orderData.order.id, // Use real order_id from backend
+      handler: function (response) {
+        setOrderStatus('Payment successful! Payment ID: ' + response.razorpay_payment_id);
+        setPlacingOrder(false);
+        // Optionally: verify payment on backend here
+      },
+      prefill: {
+        name: "Test User",
+        email: "test@example.com",
+        contact: "9999999999"
+      },
+      notes: {
+        product_id: product._id || product.id
+      },
+      theme: {
+        color: "#1d1d1f"
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (response){
+      setOrderStatus('Payment failed: ' + response.error.description);
+      setPlacingOrder(false);
+    });
+    rzp.open();
+    setPlacingOrder(false);
   };
 
   const handlePlaceOrder = async () => {
@@ -192,8 +274,22 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
                 <button onClick={() => onAddToCompare(product)} className="add-to-compare">
                   Compare
                 </button>
-                <button onClick={handlePlaceOrder} className="place-order-btn" disabled={placingOrder} style={{background:'linear-gradient(90deg,#22c55e,#16a34a)',color:'#fff',marginLeft:'0.5rem',padding:'0.6rem 1.2rem',borderRadius:'8px',fontWeight:'600',fontSize:'1rem',boxShadow:'0 2px 8px rgba(34,197,94,0.08)'}}>
-                  {placingOrder ? 'Placing Order...' : 'Place Order'}
+                <button
+                  onClick={handleRazorpayPayment}
+                  className="place-order-btn"
+                  disabled={placingOrder}
+                  style={{
+                    background: 'linear-gradient(90deg,#22c55e,#16a34a)',
+                    color: '#fff',
+                    marginLeft: '0.5rem',
+                    padding: '0.6rem 1.2rem',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.08)'
+                  }}
+                >
+                  {placingOrder ? 'Processing...' : 'Pay with Razorpay'}
                 </button>
               </div>
             </div>
