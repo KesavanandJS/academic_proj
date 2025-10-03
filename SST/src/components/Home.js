@@ -31,6 +31,8 @@ const Home = ({ user, onLogout }) => {
   const [showCompare, setShowCompare] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [pendingPayment, setPendingPayment] = useState(null);
+  const [showPersonalDetails, setShowPersonalDetails] = useState(false);
   const [autoRefreshCart, setAutoRefreshCart] = useState(true);
   const [filters, setFilters] = useState({
     minPrice: '',
@@ -573,14 +575,39 @@ const Home = ({ user, onLogout }) => {
       </main>
 
       {/* Product Details Modal */}
-      {selectedProduct && (
+      {selectedProduct && !showPersonalDetails && (
         <ProductDetailsModal 
           product={selectedProduct} 
           onClose={() => setSelectedProduct(null)}
           onAddToCart={addToCart}
           onAddToWishlist={addToWishlist}
           onAddToCompare={addToCompare}
+          onPayWithRazorpay={(product, quantity) => {
+            setPendingPayment({ product, quantity });
+            setShowPersonalDetails(true);
+            setSelectedProduct(null);
+          }}
         />
+      )}
+
+      {showPersonalDetails && pendingPayment && (
+        (() => {
+          const PersonalDetails = require('./PersonalDetails').default;
+          return <PersonalDetails
+            user={user}
+            shippingDetails={{
+              address: '',
+              city: '',
+              state: '',
+              zipCode: '',
+              country: ''
+            }}
+            onProceed={(details) => {
+              setShowPersonalDetails(false);
+              setSelectedProduct({ ...pendingPayment.product, shippingDetails: details, triggerPayment: true });
+            }}
+          />;
+        })()
       )}
 
       {/* Filters Modal */}

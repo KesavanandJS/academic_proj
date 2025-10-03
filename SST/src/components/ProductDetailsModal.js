@@ -5,9 +5,19 @@ import ProductReview from './ProductReview';
 
 const RAZORPAY_KEY_ID = "rzp_test_RIzKRmudRwp3Ru"; // DO NOT expose key_secret in frontend code
 
-const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, onAddToCompare }) => {
+const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, onAddToCompare, onPayWithRazorpay }) => {
+  // Format price as INR currency
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(price);
+  };
+  // Removed duplicate hook and useEffect declarations
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(typeof window.quantity !== 'undefined' ? window.quantity : 1);
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [reviewError, setReviewError] = useState('');
@@ -17,29 +27,11 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    if (!product?._id && !product?.id) return;
-    setLoadingReviews(true);
-  fetch(`${API_URL}/api/products/${product._id || product.id}/reviews`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setReviews(data.reviews);
-        else setReviews([]);
-        setLoadingReviews(false);
-      })
-      .catch(() => {
-        setReviews([]);
-        setLoadingReviews(false);
-      });
+    if (product && product.triggerPayment) {
+      handleRazorpayPayment();
+    }
+    // eslint-disable-next-line
   }, [product]);
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price);
-  };
 
   const handleAddReview = async (review) => {
     setReviewError('');
@@ -279,7 +271,11 @@ const ProductDetailsModal = ({ product, onClose, onAddToCart, onAddToWishlist, o
                   Compare
                 </button>
                 <button
-                  onClick={handleRazorpayPayment}
+                  onClick={() => {
+                    if (typeof onPayWithRazorpay === 'function') {
+                      onPayWithRazorpay(product, quantity);
+                    }
+                  }}
                   className="place-order-btn"
                   disabled={placingOrder}
                   style={{

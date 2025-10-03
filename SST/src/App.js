@@ -11,6 +11,14 @@ import './styles/responsive-utilities.css';
 
 function App() {
   const [currentView, setCurrentView] = useState('about');
+  const [pendingPayment, setPendingPayment] = useState(null); // { product, quantity }
+  const [shippingDetails, setShippingDetails] = useState({
+    address: '123 Main St',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
+    zipCode: '600001',
+    country: 'India'
+  });
   const [user, setUser] = useState(null);
   const [admin, setAdmin] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -77,9 +85,45 @@ function App() {
 
   // User view
   if (isAuthenticated && user) {
+    if (currentView === 'personalDetails' && pendingPayment) {
+      const PersonalDetails = require('./components/PersonalDetails').default;
+      return (
+        <ToastProvider>
+          <PersonalDetails
+            user={user}
+            shippingDetails={shippingDetails}
+            onProceed={() => setCurrentView('payment')}
+          />
+        </ToastProvider>
+      );
+    }
+    if (currentView === 'payment' && pendingPayment) {
+      // Render ProductDetailsModal with payment trigger
+      const ProductDetailsModal = require('./components/ProductDetailsModal').default;
+      return (
+        <ToastProvider>
+          <ProductDetailsModal
+            product={pendingPayment.product}
+            quantity={pendingPayment.quantity}
+            onClose={() => { setCurrentView('home'); setPendingPayment(null); }}
+            onAddToCart={() => {}}
+            onAddToWishlist={() => {}}
+            onAddToCompare={() => {}}
+            triggerPayment={true}
+          />
+        </ToastProvider>
+      );
+    }
     return (
       <ToastProvider>
-        <Home user={user} onLogout={handleLogout} />
+        <Home
+          user={user}
+          onLogout={handleLogout}
+          onPayWithRazorpay={(product, quantity) => {
+            setPendingPayment({ product, quantity });
+            setCurrentView('personalDetails');
+          }}
+        />
       </ToastProvider>
     );
   }
